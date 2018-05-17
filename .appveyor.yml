@@ -16,8 +16,9 @@ environment:
     RUST_BACKTRACE: 1
 
 test:
-  matrix:
-  - test_script:
+  categories:
+  - default:
+    test_script:
     - cargo test --manifest-path proto/Cargo.toml
     - cargo test --manifest-path client/Cargo.toml
     - cargo test --manifest-path resolver/Cargo.toml
@@ -25,35 +26,40 @@ test:
     - cargo test --manifest-path integration-tests/Cargo.toml
     - cargo run --manifest-path resolver/Cargo.toml --example global_resolver
 
-  - test_script:
+  - all-features:
+    test_script:
     - cargo test --manifest-path proto/Cargo.toml --all-features
     - cargo test --manifest-path client/Cargo.toml --all-features
     - cargo test --manifest-path resolver/Cargo.toml --all-features
     - cargo test --manifest-path server/Cargo.toml --all-features
     - cargo test --manifest-path integration-tests/Cargo.toml --all-features
 
-  - test_script:
+  - no-default-features:
+    test_script:
     - cargo test --manifest-path proto/Cargo.toml --no-default-features
     - cargo test --manifest-path client/Cargo.toml --no-default-features
     - cargo test --manifest-path resolver/Cargo.toml --no-default-features
     - cargo test --manifest-path server/Cargo.toml --no-default-features
     - cargo test --manifest-path integration-tests/Cargo.toml --no-default-features
 
-  - test_script:
+  - dnssec-openssl:
+    test_script:
     - cargo test --manifest-path proto/Cargo.toml --no-default-features --features=dnssec-openssl
     - cargo test --manifest-path client/Cargo.toml --no-default-features --features=dnssec-openssl
     - cargo test --manifest-path resolver/Cargo.toml --no-default-features --features=dnssec-openssl
     - cargo test --manifest-path server/Cargo.toml --no-default-features --features=dnssec-openssl
     - cargo test --manifest-path integration-tests/Cargo.toml --no-default-features --features=dnssec-openssl
 
-  - test_script:
+  - dnssec-ring:
+    test_script:
     - cargo test --manifest-path proto/Cargo.toml --no-default-features --features=dnssec-ring  
     - cargo test --manifest-path client/Cargo.toml --no-default-features --features=dnssec-ring
     - cargo test --manifest-path resolver/Cargo.toml --no-default-features --features=dnssec-ring
     - cargo test --manifest-path server/Cargo.toml --no-default-features --features=dnssec-ring
     - cargo test --manifest-path integration-tests/Cargo.toml --no-default-features --features=dnssec-ring
 
-  - test_script:
+  - dns-over-tls:
+    test_script:
     - cargo test --manifest-path native-tls/Cargo.toml
     - cargo test --manifest-path openssl/Cargo.toml
     - cargo test --manifest-path rustls/Cargo.toml
@@ -63,17 +69,18 @@ test:
     - cargo test --manifest-path integration-tests/Cargo.toml --features=dns-over-openssl
     - cargo test --manifest-path resolver/Cargo.toml --features=dns-over-rustls
 
-  # Just checking the basics on i686/32bit
-  - test_script:
-    - cargo test --manifest-path proto/Cargo.toml
-    - cargo test --manifest-path client/Cargo.toml
-    - cargo test --manifest-path resolver/Cargo.toml
-    - cargo test --manifest-path server/Cargo.toml
-    - cargo test --manifest-path integration-tests/Cargo.toml
-    - cargo test --manifest-path native-tls/Cargo.toml
-    - cargo test --manifest-path openssl/Cargo.toml
-    - cargo test --manifest-path rustls/Cargo.toml
-    - cargo run --manifest-path resolver/Cargo.toml --example global_resolver
+  # # Just checking the basics on i686/32bit
+  # - default:
+  #   test_script:
+  #   - cargo test --manifest-path proto/Cargo.toml
+  #   - cargo test --manifest-path client/Cargo.toml
+  #   - cargo test --manifest-path resolver/Cargo.toml
+  #   - cargo test --manifest-path server/Cargo.toml
+  #   - cargo test --manifest-path integration-tests/Cargo.toml
+  #   - cargo test --manifest-path native-tls/Cargo.toml
+  #   - cargo test --manifest-path openssl/Cargo.toml
+  #   - cargo test --manifest-path rustls/Cargo.toml
+  #   - cargo run --manifest-path resolver/Cargo.toml --example global_resolver
 
 init:
   - ps: Disable-NetFirewallRule -DisplayName 'Core Networking - Group Policy (LSASS-Out)'
