@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use futures::{future, Future};
+use futures::Future;
 use tokio::runtime::current_thread::Runtime;
 
 use trust_dns_proto::xfer::DnsResponse;
@@ -488,6 +488,8 @@ where
     ) -> ClientResult<
         Box<Future<Item = SecureClientHandle<BasicClientHandle>, Error = ClientError> + Send>,
     > {
+        use futures::future;
+
         let (stream, stream_handle) = self.conn.new_stream()?;
 
         let client = ClientFuture::new(stream, stream_handle, self.signer.clone());
