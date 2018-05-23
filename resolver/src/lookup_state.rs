@@ -91,6 +91,10 @@ impl<C: DnsHandle<Error = ResolveError> + 'static> CachingClient<C> {
             match usage.resolver() {
                 ResolverUsage::Loopback => match query.query_type() {
                     // TODO: look in hosts for these ips/names first...
+                    // NOTE: I'm not sure if this is relevant on Linux, when you use glibc's
+                    // gethostbyname is will go through the nssswitch if I'm not mistaken
+                    // $ grep '^hosts' /etc/nsswitch.conf
+                    // hosts:      files mdns4_minimal [NOTFOUND=return] dns myhostname
                     RecordType::A => return Box::new(future::ok(LOCALHOST_V4.clone())),
                     RecordType::AAAA => return Box::new(future::ok(LOCALHOST_V6.clone())),
                     RecordType::PTR => return Box::new(future::ok(LOCALHOST.clone())),

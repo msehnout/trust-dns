@@ -197,7 +197,7 @@ pub mod lookup_state;
 #[doc(hidden)]
 pub mod name_server_pool;
 mod resolver;
-mod resolver_future;
+pub mod resolver_future;
 pub mod system_conf;
 #[cfg(feature = "dns-over-tls")]
 mod tls;

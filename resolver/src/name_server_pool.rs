@@ -454,7 +454,8 @@ pub struct NameServerPool<C: DnsHandle + 'static, P: ConnectionProvider<ConnHand
 }
 
 impl<C: DnsHandle + 'static, P: ConnectionProvider<ConnHandle = C> + 'static> NameServerPool<C, P> {
-    pub(crate) fn from_config(
+    #[doc(hidden)]
+    pub fn from_config(
         config: &ResolverConfig,
         options: &ResolverOpts,
     ) -> NameServerPool<BasicResolverHandle, StandardConnection> {

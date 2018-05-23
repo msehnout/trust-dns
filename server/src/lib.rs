@@ -48,6 +48,7 @@ extern crate tokio_udp;
 extern crate toml;
 extern crate trust_dns;
 extern crate trust_dns_proto;
+extern crate trust_dns_resolver;
 
 #[cfg(feature = "tls")]
 extern crate trust_dns_openssl;
@@ -57,6 +58,7 @@ pub mod config;
 pub mod error;
 pub mod logger;
 pub mod server;
+pub mod resolver;
 
 pub use self::server::ServerFuture;
 

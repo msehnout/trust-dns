@@ -67,6 +67,13 @@ path = "src/lib.rs"
 name = "named"
 path = "src/named.rs"
 
+# A: Why the trust- prefix?
+# B:  Well, once package maintainers try to ship this they will hit a problem with
+# name conflicts (e.g. for named), so it is desirable to prevent this from ever happening.
+[[bin]]
+name = "trust-resolved"
+path = "src/trust-resolved.rs"
+
 [dependencies]
 backtrace = "^0.3"
 chrono = "^0.4"
@@ -90,6 +97,7 @@ tokio-udp = "^0.1"
 toml = "^0.4"
 trust-dns = { version = "^0.14", path = "../client" }
 trust-dns-proto = { version = "^0.4", path = "../proto" }
+trust-dns-resolver = { version = "^0.9", path = "../resolver" }
 trust-dns-openssl = { version = "^0.3", path = "../openssl", optional = true }
 
 [dev-dependencies]
