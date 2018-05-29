@@ -8,15 +8,12 @@
 //! Lookup result from a resolution of ipv4 and ipv6 records with a Resolver.
 
 use std::cmp::min;
-use std::mem;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::slice::Iter;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use failure::Fail;
-
-use futures::{future, task, Async, Future, Poll};
+use futures::{future, Async, Future, Poll};
 
 use trust_dns_proto::op::Query;
 use trust_dns_proto::rr::rdata;
@@ -31,7 +28,7 @@ use error::*;
 use lookup_ip::LookupIpIter;
 use lookup_state::CachingClient;
 use name_server_pool::{ConnectionProvider, NameServerPool, StandardConnection};
-use resolver_future::BasicResolverHandle;
+use async_resolver::BasicAsyncResolver;
 
 /// Result of a DNS query when querying for any record type supported by the TRust-DNS Proto library.
 ///
@@ -146,7 +143,7 @@ impl<C: DnsHandle<Error = ResolveError>, P: ConnectionProvider<ConnHandle = C>> 
 
 /// The Future returned from ResolverFuture when performing a lookup.
 #[doc(hidden)]
-pub struct LookupFuture<C = LookupEither<BasicResolverHandle, StandardConnection>>
+pub struct LookupFuture<C = LookupEither<BasicAsyncResolver, StandardConnection>>
 where
     C: DnsHandle<Error = ResolveError> + 'static,
 {
@@ -154,7 +151,7 @@ where
     names: Vec<Name>,
     record_type: RecordType,
     options: DnsRequestOptions,
-    future: Box<Future<Item = Lookup, Error = ResolveError> + Send>,
+    query: Box<Future<Item = Lookup, Error = ResolveError> + Send>,
 }
 
 impl<C: DnsHandle<Error = ResolveError> + 'static> LookupFuture<C> {
@@ -188,39 +185,8 @@ impl<C: DnsHandle<Error = ResolveError> + 'static> LookupFuture<C> {
             names,
             record_type,
             options,
-            future: query,
+            query,
         }
-    }
-
-    fn next_lookup<F: FnOnce() -> Poll<Lookup, ResolveError>>(
-        &mut self,
-        otherwise: F,
-    ) -> Poll<Lookup, ResolveError> {
-        let name = self.names.pop();
-        if let Some(name) = name {
-            let query = self.client_cache
-                .lookup(Query::query(name, self.record_type), self.options.clone());
-
-            mem::replace(&mut self.future, Box::new(query));
-            // guarantee that we get scheduled for the next turn...
-            task::current().notify();
-            Ok(Async::NotReady)
-        } else {
-            otherwise()
-        }
-    }
-
-    pub(crate) fn error<E: Fail>(client_cache: CachingClient<C>, error: E) -> Self {
-        return LookupFuture {
-            // errors on names don't need to be cheap... i.e. this clone is unfortunate in this case.
-            client_cache,
-            names: vec![],
-            record_type: RecordType::NULL,
-            options: DnsRequestOptions::default(),
-            future: Box::new(future::err(
-                ResolveErrorKind::Msg(format!("{}", error)).into(),
-            )),
-        };
     }
 }
 
@@ -229,19 +195,45 @@ impl<C: DnsHandle<Error = ResolveError> + 'static> Future for LookupFuture<C> {
     type Error = ResolveError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match self.future.poll() {
-            Ok(Async::Ready(lookup_ip)) => if lookup_ip.rdatas.len() == 0 {
-                return self.next_lookup(|| Ok(Async::Ready(lookup_ip)));
-            } else {
-                return Ok(Async::Ready(lookup_ip));
-            },
-            p @ Ok(Async::NotReady) => p,
-            e @ Err(_) => {
-                return self.next_lookup(|| e);
+        loop {
+            // Try polling the underlying DNS query.
+            let query = self.query.poll();
+
+            // Determine whether or not we will attempt to retry the query.
+            let should_retry = match query {
+                // If the query is NotReady, yield immediately.
+                Ok(Async::NotReady) => return Ok(Async::NotReady),
+                // If the query returned a successful lookup, we will attempt
+                // to retry if the lookup is empty. Otherwise, we will return
+                // that lookup.
+                Ok(Async::Ready(ref lookup)) => lookup.rdatas.len() == 0,
+                // If the query failed, we will attempt to retry.
+                Err(_) => true,
+            };
+
+            if should_retry {
+                if let Some(name) = self.names.pop() {
+                    // If there's another name left to try, build a new query
+                    // for that next name and continue looping.
+                    self.query = self.client_cache
+                        .lookup(Query::query(name, self.record_type), self.options.clone());
+                    // Continue looping with the new query. It will be polled
+                    // on the next iteration of the loop.
+                    continue;
+                }
             }
+            // If we didn't have to retry the query, or we weren't able to
+            // retry because we've exhausted the names to search, return the
+            // current query.
+            return query;
+            // If we skipped retrying the  query, this will return the
+            // successful lookup, otherwise, if the retry failed, this will
+            // return the last  query result --- either an empty lookup or the
+            // last error we saw.
         }
     }
 }
+
 
 /// The result of an SRV lookup
 #[derive(Debug, Clone)]
@@ -491,7 +483,10 @@ pub mod tests {
             ).wait()
                 .unwrap_err()
                 .kind(),
-            ResolveErrorKind::NoRecordsFound(Query::query(Name::root(), RecordType::A))
+            ResolveErrorKind::NoRecordsFound {
+                query: Query::query(Name::root(), RecordType::A),
+                valid_until: None,
+            }
         );
     }
 }

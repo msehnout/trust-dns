@@ -14,6 +14,7 @@ use trust_dns_proto::rr::Name;
 
 /// Configuration for the upstream nameservers to use for resolution
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde-config", derive(Serialize, Deserialize))]
 pub struct ResolverConfig {
     // base search domain
     domain: Option<Name>,
@@ -173,6 +174,7 @@ impl Default for ResolverConfig {
 
 /// The protocol on which a NameServer should be communicated with
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde-config", derive(Serialize, Deserialize))]
 pub enum Protocol {
     /// UDP is the traditional DNS port, this is generally the correct choice
     Udp,
@@ -207,6 +209,7 @@ impl Protocol {
 
 /// Configuration for the NameServer
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde-config", derive(Serialize, Deserialize))]
 pub struct NameServerConfig {
     /// The address which the DNS NameServer is registered at.
     pub socket_addr: SocketAddr,
@@ -218,6 +221,7 @@ pub struct NameServerConfig {
 
 /// A set of name_servers to associate with a ResolverConfiguration
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde-config", derive(Serialize, Deserialize))]
 pub struct NameServerConfigGroup(Vec<NameServerConfig>);
 
 impl NameServerConfigGroup {
@@ -387,6 +391,7 @@ impl From<Vec<NameServerConfig>> for NameServerConfigGroup {
 
 /// The lookup ip strategy
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde-config", derive(Serialize, Deserialize))]
 pub enum LookupIpStrategy {
     /// Only query for A (Ipv4) records
     Ipv4Only,
@@ -409,6 +414,7 @@ impl Default for LookupIpStrategy {
 
 /// Configuration for the Resolver
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[cfg_attr(feature = "serde-config", derive(Serialize, Deserialize))]
 #[allow(dead_code)] // TODO: remove after all params are supported
 pub struct ResolverOpts {
     /// Sets the number of dots that must appear (unless it's a final dot representing the root)
@@ -435,6 +441,30 @@ pub struct ResolverOpts {
     pub cache_size: usize,
     /// Check /ect/hosts file before dns requery (only works for unix like OS)
     pub use_hosts_file: bool,
+    /// Optional minimum TTL for positive responses.
+    ///
+    /// If this is set, any positive responses with a TTL lower than this value will have a TTL of
+    /// `positive_min_ttl` instead. Otherwise, this will default to 0 seconds.
+    pub positive_min_ttl: Option<Duration>,
+    /// Optional minimum TTL for negative (`NXDOMAIN`) responses.
+    ///
+    /// If this is set, any positive responses with a TTL lower than this value will have a TTL of
+    /// `negative_min_ttl` instead. Otherwise, this will default to 0 seconds.
+    pub negative_min_ttl: Option<Duration>,
+    /// Optional maximum TTL for positive responses.
+    ///
+    /// If this is set, any positive responses with a TTL higher than this value will have a TTL of
+    /// `positive_max_ttl` instead. Otherwise, this will default to [`MAX_TTL`] seconds.
+    ///
+    /// [`MAX_TTL`]: ../dns_lru/const.MAX_TTL.html
+    pub positive_max_ttl: Option<Duration>,
+    /// Optional maximum TTL for negative (`NXDOMAIN`) responses.
+    ///
+    /// If this is set, any positive responses with a TTL higher than this value will have a TTL of
+    /// `negative_max_ttl` instead. Otherwise, this will default to [`MAX_TTL`] seconds.
+    ///
+    /// [`MAX_TTL`]: ../dns_lru/const.MAX_TTL.html
+    pub negative_max_ttl: Option<Duration>,
 }
 
 impl Default for ResolverOpts {
@@ -453,6 +483,10 @@ impl Default for ResolverOpts {
             ip_strategy: LookupIpStrategy::default(),
             cache_size: 32,
             use_hosts_file: true,
+            positive_min_ttl: None,
+            negative_min_ttl: None,
+            positive_max_ttl: None,
+            negative_max_ttl: None,
         }
     }
 }
